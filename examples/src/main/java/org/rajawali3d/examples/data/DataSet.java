@@ -53,6 +53,7 @@ import org.rajawali3d.examples.examples.materials.SpecularAndAlphaFragment;
 import org.rajawali3d.examples.examples.materials.SphereMapFragment;
 import org.rajawali3d.examples.examples.materials.ToonShadingFragment;
 import org.rajawali3d.examples.examples.materials.VideoTextureFragment;
+import org.rajawali3d.examples.examples.materials.VideoTextureRecFragment;
 import org.rajawali3d.examples.examples.optimizations.ETC1TextureCompressionFragment;
 import org.rajawali3d.examples.examples.optimizations.ETC2TextureCompressionFragment;
 import org.rajawali3d.examples.examples.optimizations.Optimized2000PlanesFragment;
@@ -181,6 +182,7 @@ public final class DataSet {
                 new Example(R.string.example_materials_canvas, CanvasTextFragment.class),
                 new Example(R.string.example_materials_specular_alpha, SpecularAndAlphaFragment.class),
                 new Example(R.string.example_materials_video, VideoTextureFragment.class),
+                new Example(R.string.example_materials_video, VideoTextureRecFragment.class),
                 new Example(R.string.example_materials_from_files, RawShaderFilesFragment.class),
                 new Example(R.string.example_materials_animated_gif, AnimatedGIFTextureFragment.class),
         }));
