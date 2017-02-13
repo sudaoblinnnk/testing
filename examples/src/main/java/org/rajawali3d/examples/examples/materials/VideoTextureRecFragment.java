@@ -8,9 +8,13 @@ import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
 import android.opengl.GLES20;
 import android.opengl.GLES30;
+import android.os.Bundle;
 import android.os.Environment;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.animation.AccelerateDecelerateInterpolator;
 
@@ -36,6 +40,7 @@ import org.rajawali3d.materials.textures.Texture;
 import org.rajawali3d.math.vector.Vector3;
 import org.rajawali3d.primitives.Cube;
 import org.rajawali3d.primitives.Plane;
+import org.rajawali3d.view.TextureView;
 
 import java.io.File;
 import java.io.IOException;
@@ -43,10 +48,20 @@ import java.io.IOException;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
-public class VideoTextureRecFragment extends AExampleFragment {
+public class VideoTextureRecFragment extends AExampleFragment   {
     //implements Choreographer.FrameCallback {
 
     private static final String TAG = "kurt";
+
+
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+
+
+        return super.onCreateView(inflater, container, savedInstanceState);
+
+    }
 
     @Override
     public AExampleRenderer createRenderer() {
@@ -97,6 +112,7 @@ public class VideoTextureRecFragment extends AExampleFragment {
         @Override
         public void onRenderSurfaceCreated(EGLConfig config, GL10 gl, int width, int height) {
             super.onRenderSurfaceCreated(config, gl, width, height);
+            Log.d(TAG, "onRenderSurfaceCreated w : " + width + " h : " + height);
 //
 //            mEglCore = new EglCore(null, EglCore.FLAG_RECORDABLE | EglCore.FLAG_TRY_GLES3);
 //            mVideoTexture = new StreamingTexture("sintelTrailer", mMediaPlayer);
@@ -241,14 +257,14 @@ public class VideoTextureRecFragment extends AExampleFragment {
         protected void onRender(long ellapsedRealtime, double deltaTime) {
             super.onRender(ellapsedRealtime, deltaTime);
             mVideoTexture.update();
-            if (mEglCore == null) {
-                mEglCore = new EglCore(null, EglCore.FLAG_RECORDABLE | EglCore.FLAG_TRY_GLES3);
-                mWindowSurface = new WindowSurface(mEglCore, mVideoTexture.getSurfaceTexture());
-                mWindowSurface.makeCurrent();
-
-                startEncoder();
-                Log.d(TAG, "kurt startEncoder ");
-            }
+//            if (mEglCore == null) {
+//                mEglCore = new EglCore(null, EglCore.FLAG_RECORDABLE | EglCore.FLAG_TRY_GLES3);
+//                mWindowSurface = new WindowSurface(mEglCore, mVideoTexture.getSurfaceTexture());
+//                mWindowSurface.makeCurrent();
+//
+//                startEncoder();
+//                Log.d(TAG, "kurt startEncoder ");
+//            }
             doFrame(0);
 
         }
@@ -402,7 +418,17 @@ public class VideoTextureRecFragment extends AExampleFragment {
                     //draw();
 
                     mVideoEncoder.frameAvailableSoon();
-                    mInputWindowSurface.makeCurrentReadFrom(mWindowSurface);
+//
+//                    TextureView view = mRajawaliTextureViewWeakRef.get();
+//                    if (view != null) {
+//                        view.mRendererDelegate.mRenderer.onRenderSurfaceCreated(mEglHelper.mEglConfig, gl, -1, -1);
+//                    }
+                    //render get GLThread, thread get mEglHelper
+                    if (this.mEglHelper != null) {
+
+                        mInputWindowSurface.makeCurrentReadFrom(mEglHelper.getEglSurface());
+                    }
+                    mInputWindowSurface.makeCurrentReadFrom();
                     // Clear the pixels we're not going to overwrite with the blit.  Once again,
                     // this is excessive -- we don't need to clear the entire screen.
                     GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);

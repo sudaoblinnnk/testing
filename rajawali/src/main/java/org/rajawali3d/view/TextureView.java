@@ -35,13 +35,13 @@ import javax.microedition.khronos.opengles.GL10;
  */
 public class TextureView extends android.view.TextureView implements ISurface {
     private final static String TAG = "TextureView";
-    private final static boolean LOG_ATTACH_DETACH = false;
-    private final static boolean LOG_THREADS = false;
-    private final static boolean LOG_PAUSE_RESUME = false;
+    private final static boolean LOG_ATTACH_DETACH = true;
+    private final static boolean LOG_THREADS = true;
+    private final static boolean LOG_PAUSE_RESUME = true;
     private final static boolean LOG_SURFACE = true;
-    private final static boolean LOG_RENDERER = false;
-    private final static boolean LOG_RENDERER_DRAW_FRAME = false;
-    private final static boolean LOG_EGL = false;
+    private final static boolean LOG_RENDERER = true;
+    private final static boolean LOG_RENDERER_DRAW_FRAME = true;
+    private final static boolean LOG_EGL = true;
 
     private static final GLThreadManager sGLThreadManager = new GLThreadManager();
 
@@ -66,7 +66,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
 
     private boolean mPreserveEGLContextOnPause;
 
-    protected RendererDelegate mRendererDelegate;
+    public RendererDelegate mRendererDelegate;
 
     public TextureView(Context context) {
         super(context);
@@ -700,6 +700,10 @@ public class TextureView extends android.view.TextureView implements ISurface {
             mRajawaliTextureViewWeakRef = glSurfaceViewWeakRef;
         }
 
+        public EGLSurface getEglSurface() {
+            return mEglSurface;
+        }
+
         /**
          * Initialize EGL for a given configuration spec.
          */
@@ -966,14 +970,14 @@ public class TextureView extends android.view.TextureView implements ISurface {
 
         // End of member variables protected by the sGLThreadManager monitor.
 
-        private EglHelper mEglHelper;
+        public EglHelper mEglHelper;
 
         /**
          * Set once at thread construction time, nulled out when the parent view is garbage
          * called. This weak reference allows the TextureView to be garbage collected while
          * the RajawaliGLThread is still alive.
          */
-        private WeakReference<TextureView> mRajawaliTextureViewWeakRef;
+        public WeakReference<TextureView> mRajawaliTextureViewWeakRef;
 
         GLThread(WeakReference<TextureView> glSurfaceViewWeakRef) {
             super();

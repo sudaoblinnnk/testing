@@ -128,6 +128,11 @@ public class EglSurfaceBase {
         mEglCore.makeCurrent(mEGLSurface, readSurface.mEGLSurface);
     }
 
+
+    public void makeCurrentReadFrom(EGLSurface readSurface) {
+        mEglCore.makeCurrent(mEGLSurface, readSurface);
+    }
+
     /**
      * Calls eglSwapBuffers.  Use this to "publish" the current frame.
      *
