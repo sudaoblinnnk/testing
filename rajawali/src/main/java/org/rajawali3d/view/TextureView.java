@@ -57,7 +57,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
     protected int mBitsDepth = 16;
     protected int mMultiSampleCount = 0;
 
-    private GLThread mGLThread;
+    public GLThread mGLThread;
     private boolean mDetached;
     private GLSurfaceView.EGLConfigChooser mEGLConfigChooser;
     private GLSurfaceView.EGLContextFactory mEGLContextFactory;
@@ -483,10 +483,10 @@ public class TextureView extends android.view.TextureView implements ISurface {
         mGLThread.queueEvent(r);
     }
 
-    private static class RendererDelegate implements SurfaceTextureListener {
+    public static class RendererDelegate implements SurfaceTextureListener {
 
         final TextureView      mRajawaliTextureView;
-        final ISurfaceRenderer mRenderer;
+        public final ISurfaceRenderer mRenderer;
 
         public RendererDelegate(ISurfaceRenderer renderer, TextureView textureView) {
             mRenderer = renderer;
@@ -688,11 +688,11 @@ public class TextureView extends android.view.TextureView implements ISurface {
     /**
      * An EGL helper class.
      */
-    private static class EglHelper {
+    public static class EglHelper {
         private WeakReference<TextureView> mRajawaliTextureViewWeakRef;
         EGL10 mEgl;
         EGLDisplay mEglDisplay;
-        EGLSurface mEglSurface;
+        public EGLSurface mEglSurface;
         EGLConfig mEglConfig;
         EGLContext mEglContext;
 
@@ -945,7 +945,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
      * All potentially blocking synchronization is done through the
      * sGLThreadManager object. This avoids multiple-lock ordering issues.
      */
-    static class GLThread extends Thread {
+    public static class GLThread extends Thread {
 
         // Once the thread is started, all accesses to the following member
         // variables are protected by the sGLThreadManager monitor
@@ -1494,7 +1494,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
         }
     }
 
-    private static class GLThreadManager {
+    public static class GLThreadManager {
         private static String TAG = "RajawaliGLThreadManager";
 
         private boolean mGLESVersionCheckComplete;

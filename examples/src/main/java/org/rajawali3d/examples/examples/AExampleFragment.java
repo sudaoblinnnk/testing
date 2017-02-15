@@ -23,6 +23,7 @@ import org.rajawali3d.renderer.ISurfaceRenderer;
 import org.rajawali3d.renderer.Renderer;
 import org.rajawali3d.view.IDisplay;
 import org.rajawali3d.view.ISurface;
+import org.rajawali3d.view.TextureView;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -37,6 +38,8 @@ public abstract class AExampleFragment extends Fragment implements IDisplay, OnC
     protected FrameLayout mLayout;
     protected ISurface mRenderSurface;
     protected ISurfaceRenderer mRenderer;
+
+    public TextureView mTextureView;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -62,6 +65,8 @@ public abstract class AExampleFragment extends Fragment implements IDisplay, OnC
 
         // Find the TextureView
         mRenderSurface = (ISurface) mLayout.findViewById(R.id.rajwali_surface);
+
+        mTextureView = (TextureView) mLayout.findViewById(R.id.rajwali_surface);
 
         // Create the loader
         mProgressBarLoader = (ProgressBar) mLayout.findViewById(R.id.progress_bar_loader);
@@ -142,7 +147,7 @@ public abstract class AExampleFragment extends Fragment implements IDisplay, OnC
 
     protected static abstract class AExampleRenderer extends Renderer {
 
-        final AExampleFragment exampleFragment;
+        protected final AExampleFragment exampleFragment;
 
         public AExampleRenderer(Context context, @Nullable AExampleFragment fragment) {
             super(context);

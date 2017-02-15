@@ -256,6 +256,7 @@ public class VideoTextureRecFragment extends AExampleFragment   {
         @Override
         protected void onRender(long ellapsedRealtime, double deltaTime) {
             super.onRender(ellapsedRealtime, deltaTime);
+
             mVideoTexture.update();
 //            if (mEglCore == null) {
 //                mEglCore = new EglCore(null, EglCore.FLAG_RECORDABLE | EglCore.FLAG_TRY_GLES3);
@@ -423,12 +424,13 @@ public class VideoTextureRecFragment extends AExampleFragment   {
 //                    if (view != null) {
 //                        view.mRendererDelegate.mRenderer.onRenderSurfaceCreated(mEglHelper.mEglConfig, gl, -1, -1);
 //                    }
-                    //render get GLThread, thread get mEglHelper
-                    if (this.mEglHelper != null) {
 
-                        mInputWindowSurface.makeCurrentReadFrom(mEglHelper.getEglSurface());
+                    //render get GLThread, thread get mEglHelper
+                    if (this.exampleFragment.mTextureView.mGLThread.mEglHelper != null) {
+
+                        mInputWindowSurface.makeCurrentReadFrom(this.exampleFragment.mTextureView.mGLThread.mEglHelper.getEglSurface());
                     }
-                    mInputWindowSurface.makeCurrentReadFrom();
+                    //mInputWindowSurface.makeCurrentReadFrom();
                     // Clear the pixels we're not going to overwrite with the blit.  Once again,
                     // this is excessive -- we don't need to clear the entire screen.
                     GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
