@@ -88,8 +88,8 @@ public class Capabilities {
         mEGLMinorVersion = version[1];
         // RajLog.d("Device EGL Version: " + version[0] + "." + version[1]);
 
-        // Assume GLES 2 by default
-        mGLESMajorVersion = 2;
+        // Assume GLES 3 by default
+        mGLESMajorVersion = 3;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
             // The API for GLES3 might exist, we need to check

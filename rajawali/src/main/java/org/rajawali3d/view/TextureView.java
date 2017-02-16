@@ -18,14 +18,22 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Locale;
 
-import javax.microedition.khronos.egl.EGL10;
-import javax.microedition.khronos.egl.EGL11;
-import javax.microedition.khronos.egl.EGLConfig;
-import javax.microedition.khronos.egl.EGLContext;
-import javax.microedition.khronos.egl.EGLDisplay;
-import javax.microedition.khronos.egl.EGLSurface;
-import javax.microedition.khronos.opengles.GL;
-import javax.microedition.khronos.opengles.GL10;
+//import javax.microedition.khronos.egl.EGL14;
+//import javax.microedition.khronos.egl.EGL11;
+//import javax.microedition.khronos.egl.EGLConfig;
+//import javax.microedition.khronos.egl.EGLContext;
+//import javax.microedition.khronos.egl.EGLDisplay;
+//import javax.microedition.khronos.egl.EGLSurface;
+//import javax.microedition.khronos.egl.EGL10;
+//import javax.microedition.khronos.opengles.GL;
+//import javax.microedition.khronos.opengles.GL10;
+
+import android.opengl.EGL14;
+import android.opengl.EGLConfig;
+import android.opengl.EGLContext;
+import android.opengl.EGLDisplay;
+import android.opengl.EGLExt;
+import android.opengl.EGLSurface;
 
 /**
  * Rajawali version of a {@link TextureView}. If you plan on using Rajawali with a {@link TextureView},
@@ -59,9 +67,9 @@ public class TextureView extends android.view.TextureView implements ISurface {
 
     public GLThread mGLThread;
     private boolean mDetached;
-    private GLSurfaceView.EGLConfigChooser mEGLConfigChooser;
-    private GLSurfaceView.EGLContextFactory mEGLContextFactory;
-    private GLSurfaceView.EGLWindowSurfaceFactory mEGLWindowSurfaceFactory;
+    private EGLConfigChooser mEGLConfigChooser;
+    private EGLContextFactory mEGLContextFactory;
+    private EGLWindowSurfaceFactory mEGLWindowSurfaceFactory;
     private int mEGLContextClientVersion;
 
     private boolean mPreserveEGLContextOnPause;
@@ -116,7 +124,9 @@ public class TextureView extends android.view.TextureView implements ISurface {
     }
 
     private void initialize() {
-        final int glesMajorVersion = Capabilities.getGLESMajorVersion();
+        //final int glesMajorVersion = Capabilities.getGLESMajorVersion();
+        //TODO change Capabilities.getGLESMajorVersion()
+        final int glesMajorVersion = 3;
         setEGLContextClientVersion(glesMajorVersion);
 
         setEGLConfigChooser(new RajawaliEGLConfigChooser(glesMajorVersion, mAntiAliasingConfig, mMultiSampleCount,
@@ -323,7 +333,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
      * a context will be created with no shared context and
      * with a null attribute list.
      */
-    public void setEGLContextFactory(GLSurfaceView.EGLContextFactory factory) {
+    public void setEGLContextFactory(EGLContextFactory factory) {
         checkRenderThreadState();
         mEGLContextFactory = factory;
     }
@@ -337,7 +347,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
      * If this method is not called, then by default
      * a window surface will be created with a null attribute list.
      */
-    public void setEGLWindowSurfaceFactory(GLSurfaceView.EGLWindowSurfaceFactory factory) {
+    public void setEGLWindowSurfaceFactory(EGLWindowSurfaceFactory factory) {
         checkRenderThreadState();
         mEGLWindowSurfaceFactory = factory;
     }
@@ -355,7 +365,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
      *
      * @param configChooser {@link GLSurfaceView.EGLConfigChooser} The EGL Configuration chooser.
      */
-    public void setEGLConfigChooser(GLSurfaceView.EGLConfigChooser configChooser) {
+    public void setEGLConfigChooser(EGLConfigChooser configChooser) {
         checkRenderThreadState();
         mEGLConfigChooser = configChooser;
     }
@@ -521,35 +531,62 @@ public class TextureView extends android.view.TextureView implements ISurface {
         }
     }
 
-    private class DefaultContextFactory implements GLSurfaceView.EGLContextFactory {
+    public interface EGLContextFactory {
+        EGLContext createContext(EGLDisplay display,  EGLConfig eglConfig);
+        void destroyContext(EGLDisplay display, EGLContext context);
+    }
+
+    public interface EGLWindowSurfaceFactory {
+        /**
+         *  @return null if the surface cannot be constructed.
+         */
+        EGLSurface createWindowSurface(EGLDisplay display, EGLConfig config,
+                                       Object nativeWindow);
+        void destroySurface(EGLDisplay display, EGLSurface surface);
+    }
+
+    public interface EGLConfigChooser {
+        EGLConfig chooseConfig(EGLDisplay display);
+    }
+
+    private class DefaultContextFactory implements EGLContextFactory {
         private int EGL_CONTEXT_CLIENT_VERSION = 0x3098;
 
-        public EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig config) {
+        public EGLContext createContext(EGLDisplay display, EGLConfig config) {
             int[] attrib_list = {EGL_CONTEXT_CLIENT_VERSION, mEGLContextClientVersion,
-                EGL10.EGL_NONE};
+                EGL14.EGL_NONE};
 
-            return egl.eglCreateContext(display, config, EGL10.EGL_NO_CONTEXT,
-                mEGLContextClientVersion != 0 ? attrib_list : null);
+            return EGL14.eglCreateContext(display, config, EGL14.EGL_NO_CONTEXT,
+                mEGLContextClientVersion != 0 ? attrib_list : null, 0);
         }
 
-        public void destroyContext(EGL10 egl, EGLDisplay display, EGLContext context) {
-            if (!egl.eglDestroyContext(display, context)) {
+        public void destroyContext(EGLDisplay display, EGLContext context) {
+            if (!EGL14.eglDestroyContext(display, context)) {
                 Log.e("DefaultContextFactory", "display:" + display + " context: " + context);
                 if (LOG_THREADS) {
                     Log.i("DefaultContextFactory", "tid=" + Thread.currentThread().getId());
                 }
-                EglHelper.throwEglException("eglDestroyContex", egl.eglGetError());
+                EglHelper.throwEglException("eglDestroyContex", EGL14.eglGetError());
             }
         }
     }
 
-    private static class DefaultWindowSurfaceFactory implements GLSurfaceView.EGLWindowSurfaceFactory {
+    private static class DefaultWindowSurfaceFactory implements EGLWindowSurfaceFactory {
 
-        public EGLSurface createWindowSurface(EGL10 egl, EGLDisplay display,
+        public EGLSurface createWindowSurface(EGLDisplay display,
                                               EGLConfig config, Object nativeWindow) {
             EGLSurface result = null;
             try {
-                result = egl.eglCreateWindowSurface(display, config, nativeWindow, null);
+                //result = EGL14.eglCreateWindowSurface(display, config, nativeWindow, null);
+                int[] surfaceAttribs = {
+                        EGL14.EGL_NONE
+                };
+                EGLSurface eglSurface = EGL14.eglCreateWindowSurface(display, config, nativeWindow,
+                        surfaceAttribs, 0);
+                if (eglSurface == null) {
+                    throw new RuntimeException("surface was null");
+                }
+                return eglSurface;
             } catch (IllegalArgumentException e) {
                 // This exception indicates that the surface flinger surface
                 // is not valid. This can happen if the surface flinger surface has
@@ -562,24 +599,25 @@ public class TextureView extends android.view.TextureView implements ISurface {
             return result;
         }
 
-        public void destroySurface(EGL10 egl, EGLDisplay display,
+        public void destroySurface(EGLDisplay display,
                                    EGLSurface surface) {
-            egl.eglDestroySurface(display, surface);
+            EGL14.eglDestroySurface(display, surface);
         }
     }
 
     private abstract class BaseConfigChooser
-        implements GLSurfaceView.EGLConfigChooser {
+        implements EGLConfigChooser {
         public BaseConfigChooser(int[] configSpec) {
             mConfigSpec = filterConfigSpec(configSpec);
         }
 
-        public EGLConfig chooseConfig(EGL10 egl, EGLDisplay display) {
+        public EGLConfig chooseConfig(EGLDisplay display) {
             int[] num_config = new int[1];
-            if (!egl.eglChooseConfig(display, mConfigSpec, null, 0,
+            if (!EGL14.eglChooseConfig(display, mConfigSpec, null, 0,
                 num_config)) {
                 throw new IllegalArgumentException("eglChooseConfig failed");
             }
+
 
             int numConfigs = num_config[0];
 
@@ -600,7 +638,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
             return config;
         }
 
-        abstract EGLConfig chooseConfig(EGL10 egl, EGLDisplay display,
+        abstract EGLConfig chooseConfig(EGL14 egl, EGLDisplay display,
                                         EGLConfig[] configs);
 
         protected int[] mConfigSpec;
@@ -615,13 +653,13 @@ public class TextureView extends android.view.TextureView implements ISurface {
             int len = configSpec.length;
             int[] newConfigSpec = new int[len + 2];
             System.arraycopy(configSpec, 0, newConfigSpec, 0, len - 1);
-            newConfigSpec[len - 1] = EGL10.EGL_RENDERABLE_TYPE;
+            newConfigSpec[len - 1] = EGL14.EGL_RENDERABLE_TYPE;
             if (mEGLContextClientVersion == 2) {
                 newConfigSpec[len] = RajawaliEGLConfigChooser.EGL_OPENGL_ES2_BIT;  /* EGL_OPENGL_ES2_BIT */
             } else {
                 newConfigSpec[len] = RajawaliEGLConfigChooser.EGL_OPENGL_ES3_BIT_KHR; /* EGL_OPENGL_ES3_BIT_KHR */
             }
-            newConfigSpec[len + 1] = EGL10.EGL_NONE;
+            newConfigSpec[len + 1] = EGL14.EGL_NONE;
             return newConfigSpec;
         }
     }
@@ -634,13 +672,13 @@ public class TextureView extends android.view.TextureView implements ISurface {
         public ComponentSizeChooser(int redSize, int greenSize, int blueSize,
                                     int alphaSize, int depthSize, int stencilSize) {
             super(new int[]{
-                EGL10.EGL_RED_SIZE, redSize,
-                EGL10.EGL_GREEN_SIZE, greenSize,
-                EGL10.EGL_BLUE_SIZE, blueSize,
-                EGL10.EGL_ALPHA_SIZE, alphaSize,
-                EGL10.EGL_DEPTH_SIZE, depthSize,
-                EGL10.EGL_STENCIL_SIZE, stencilSize,
-                EGL10.EGL_NONE});
+                EGL14.EGL_RED_SIZE, redSize,
+                EGL14.EGL_GREEN_SIZE, greenSize,
+                EGL14.EGL_BLUE_SIZE, blueSize,
+                EGL14.EGL_ALPHA_SIZE, alphaSize,
+                EGL14.EGL_DEPTH_SIZE, depthSize,
+                EGL14.EGL_STENCIL_SIZE, stencilSize,
+                EGL14.EGL_NONE});
             mValue = new int[1];
             mRedSize = redSize;
             mGreenSize = greenSize;
@@ -651,15 +689,15 @@ public class TextureView extends android.view.TextureView implements ISurface {
         }
 
         @Override
-        public EGLConfig chooseConfig(EGL10 egl, EGLDisplay display, EGLConfig[] configs) {
+        public EGLConfig chooseConfig(EGL14 egl, EGLDisplay display, EGLConfig[] configs) {
             for (EGLConfig config : configs) {
-                int d = findConfigAttrib(egl, display, config, EGL10.EGL_DEPTH_SIZE, 0);
-                int s = findConfigAttrib(egl, display, config, EGL10.EGL_STENCIL_SIZE, 0);
+                int d = findConfigAttrib(egl, display, config, EGL14.EGL_DEPTH_SIZE, 0);
+                int s = findConfigAttrib(egl, display, config, EGL14.EGL_STENCIL_SIZE, 0);
                 if ((d >= mDepthSize) && (s >= mStencilSize)) {
-                    int r = findConfigAttrib(egl, display, config, EGL10.EGL_RED_SIZE, 0);
-                    int g = findConfigAttrib(egl, display, config, EGL10.EGL_GREEN_SIZE, 0);
-                    int b = findConfigAttrib(egl, display, config, EGL10.EGL_BLUE_SIZE, 0);
-                    int a = findConfigAttrib(egl, display, config, EGL10.EGL_ALPHA_SIZE, 0);
+                    int r = findConfigAttrib(egl, display, config, EGL14.EGL_RED_SIZE, 0);
+                    int g = findConfigAttrib(egl, display, config, EGL14.EGL_GREEN_SIZE, 0);
+                    int b = findConfigAttrib(egl, display, config, EGL14.EGL_BLUE_SIZE, 0);
+                    int a = findConfigAttrib(egl, display, config, EGL14.EGL_ALPHA_SIZE, 0);
                     if ((r == mRedSize) && (g == mGreenSize) && (b == mBlueSize) && (a == mAlphaSize)) {
                         return config;
                     }
@@ -668,7 +706,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
             return null;
         }
 
-        private int findConfigAttrib(EGL10 egl, EGLDisplay display, EGLConfig config, int attribute, int defaultValue) {
+        private int findConfigAttrib(EGL14 egl, EGLDisplay display, EGLConfig config, int attribute, int defaultValue) {
             if (egl.eglGetConfigAttrib(display, config, attribute, mValue)) {
                 return mValue[0];
             }
@@ -690,7 +728,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
      */
     public static class EglHelper {
         private WeakReference<TextureView> mRajawaliTextureViewWeakRef;
-        EGL10 mEgl;
+        //EGL14 mEgl = EGL14.class;
         EGLDisplay mEglDisplay;
         public EGLSurface mEglSurface;
         EGLConfig mEglConfig;
@@ -704,6 +742,44 @@ public class TextureView extends android.view.TextureView implements ISurface {
             return mEglSurface;
         }
 
+        public static final int FLAG_RECORDABLE = 0x01;
+        public static final int FLAG_TRY_GLES3 = 0x02;
+        private static final int EGL_RECORDABLE_ANDROID = 0x3142;
+
+        private EGLConfig EGL14(int flags, int version) {
+            int renderableType = EGL14.EGL_OPENGL_ES2_BIT;
+            if (version >= 3) {
+                renderableType |= EGLExt.EGL_OPENGL_ES3_BIT_KHR;
+            }
+
+            // The actual surface is generally RGBA or RGBX, so situationally omitting alpha
+            // doesn't really help.  It can also lead to a huge performance hit on glReadPixels()
+            // when reading into a GL_RGBA buffer.
+            int[] attribList = {
+                    EGL14.EGL_RED_SIZE, 8,
+                    EGL14.EGL_GREEN_SIZE, 8,
+                    EGL14.EGL_BLUE_SIZE, 8,
+                    EGL14.EGL_ALPHA_SIZE, 8,
+                    //EGL14.EGL_DEPTH_SIZE, 16,
+                    //EGL14.EGL_STENCIL_SIZE, 8,
+                    EGL14.EGL_RENDERABLE_TYPE, renderableType,
+                    EGL14.EGL_NONE, 0,      // placeholder for recordable [@-3]
+                    EGL14.EGL_NONE
+            };
+            if ((flags & FLAG_RECORDABLE) != 0) {
+                attribList[attribList.length - 3] = EGL_RECORDABLE_ANDROID;
+                attribList[attribList.length - 2] = 1;
+            }
+            EGLConfig[] configs = new EGLConfig[1];
+            int[] numConfigs = new int[1];
+            if (!EGL14.eglChooseConfig(mEglDisplay, attribList, 0, configs, 0, configs.length,
+                    numConfigs, 0)) {
+                Log.w(TAG, "unable to find RGB8888 / " + version + " EGLConfig");
+                return null;
+            }
+            return configs[0];
+        }
+
         /**
          * Initialize EGL for a given configuration spec.
          */
@@ -714,14 +790,14 @@ public class TextureView extends android.view.TextureView implements ISurface {
             /*
              * Get an EGL instance
              */
-            mEgl = (EGL10) EGLContext.getEGL();
+            //EGL14 = (EGL14) EGLContext.getEGL();
 
             /*
              * Get to the default display.
              */
-            mEglDisplay = mEgl.eglGetDisplay(EGL10.EGL_DEFAULT_DISPLAY);
+            mEglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
 
-            if (mEglDisplay == EGL10.EGL_NO_DISPLAY) {
+            if (mEglDisplay == EGL14.EGL_NO_DISPLAY) {
                 throw new RuntimeException("eglGetDisplay failed");
             }
 
@@ -729,7 +805,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
              * We can now initialize EGL for that display
              */
             int[] version = new int[2];
-            if (!mEgl.eglInitialize(mEglDisplay, version)) {
+            if (!EGL14.eglInitialize(mEglDisplay, version, 0, version, 1)) {
                 throw new RuntimeException("eglInitialize failed");
             }
             TextureView view = mRajawaliTextureViewWeakRef.get();
@@ -737,15 +813,15 @@ public class TextureView extends android.view.TextureView implements ISurface {
                 mEglConfig = null;
                 mEglContext = null;
             } else {
-                mEglConfig = view.mEGLConfigChooser.chooseConfig(mEgl, mEglDisplay);
+                mEglConfig = getConfig(FLAG_RECORDABLE | FLAG_TRY_GLES3, 3);
 
                 /*
                 * Create an EGL context. We want to do this as rarely as we can, because an
                 * EGL context is a somewhat heavy object.
                 */
-                mEglContext = view.mEGLContextFactory.createContext(mEgl, mEglDisplay, mEglConfig);
+                mEglContext = view.mEGLContextFactory.createContext(EGL14, mEglDisplay, mEglConfig);
             }
-            if (mEglContext == null || mEglContext == EGL10.EGL_NO_CONTEXT) {
+            if (mEglContext == null || mEglContext == EGL14.EGL_NO_CONTEXT) {
                 mEglContext = null;
                 throwEglException("createContext");
             }
@@ -766,12 +842,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
             if (LOG_EGL) {
                 Log.w("EglHelper", "createSurface()  tid=" + Thread.currentThread().getId());
             }
-            /*
-             * Check preconditions.
-             */
-            if (mEgl == null) {
-                throw new RuntimeException("egl not initialized");
-            }
+
             if (mEglDisplay == null) {
                 throw new RuntimeException("eglDisplay not initialized");
             }
@@ -790,15 +861,15 @@ public class TextureView extends android.view.TextureView implements ISurface {
              */
             TextureView view = mRajawaliTextureViewWeakRef.get();
             if (view != null) {
-                mEglSurface = view.mEGLWindowSurfaceFactory.createWindowSurface(mEgl,
+                mEglSurface = view.mEGLWindowSurfaceFactory.createWindowSurface(EGL14,
                     mEglDisplay, mEglConfig, view.getSurfaceTexture());
             } else {
                 mEglSurface = null;
             }
 
-            if (mEglSurface == null || mEglSurface == EGL10.EGL_NO_SURFACE) {
-                int error = mEgl.eglGetError();
-                if (error == EGL10.EGL_BAD_NATIVE_WINDOW) {
+            if (mEglSurface == null || mEglSurface == EGL14.EGL_NO_SURFACE) {
+                int error = EGL14.eglGetError();
+                if (error == EGL14.EGL_BAD_NATIVE_WINDOW) {
                     Log.e("EglHelper", "createWindowSurface returned EGL_BAD_NATIVE_WINDOW.");
                 }
                 return false;
@@ -808,12 +879,12 @@ public class TextureView extends android.view.TextureView implements ISurface {
              * Before we can issue GL commands, we need to make sure
              * the context is current and bound to a surface.
              */
-            if (!mEgl.eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface, mEglContext)) {
+            if (!EGL14.eglMakeCurrent(mEglDisplay, mEglSurface, mEglSurface, mEglContext)) {
                 /*
                  * Could not make the context current, probably because the underlying
                  * SurfaceView surface has been destroyed.
                  */
-                logEglErrorAsWarning("EGLHelper", "eglMakeCurrent", mEgl.eglGetError());
+                logEglErrorAsWarning("EGLHelper", "eglMakeCurrent", EGL14.eglGetError());
                 return false;
             }
 
@@ -835,10 +906,10 @@ public class TextureView extends android.view.TextureView implements ISurface {
          * @return the EGL error code from eglSwapBuffers.
          */
         public int swap() {
-            if (!mEgl.eglSwapBuffers(mEglDisplay, mEglSurface)) {
-                return mEgl.eglGetError();
+            if (!EGL14.eglSwapBuffers(mEglDisplay, mEglSurface)) {
+                return EGL14.eglGetError();
             }
-            return EGL10.EGL_SUCCESS;
+            return EGL14.EGL_SUCCESS;
         }
 
         public void destroySurface() {
@@ -849,10 +920,10 @@ public class TextureView extends android.view.TextureView implements ISurface {
         }
 
         private void destroySurfaceImp() {
-            if (mEglSurface != null && mEglSurface != EGL10.EGL_NO_SURFACE) {
-                mEgl.eglMakeCurrent(mEglDisplay, EGL10.EGL_NO_SURFACE,
-                    EGL10.EGL_NO_SURFACE,
-                    EGL10.EGL_NO_CONTEXT);
+            if (mEglSurface != null && mEglSurface != EGL14.EGL_NO_SURFACE) {
+                EGL14.eglMakeCurrent(mEglDisplay, EGL14.EGL_NO_SURFACE,
+                    EGL14.EGL_NO_SURFACE,
+                    EGL14.EGL_NO_CONTEXT);
                 TextureView view = mRajawaliTextureViewWeakRef.get();
                 if (view != null) {
                     view.mEGLWindowSurfaceFactory.destroySurface(mEgl, mEglDisplay, mEglSurface);
@@ -868,18 +939,18 @@ public class TextureView extends android.view.TextureView implements ISurface {
             if (mEglContext != null) {
                 TextureView view = mRajawaliTextureViewWeakRef.get();
                 if (view != null) {
-                    view.mEGLContextFactory.destroyContext(mEgl, mEglDisplay, mEglContext);
+                    view.mEGLContextFactory.destroyContext(EGL14, mEglDisplay, mEglContext);
                 }
                 mEglContext = null;
             }
             if (mEglDisplay != null) {
-                mEgl.eglTerminate(mEglDisplay);
+                EGL14.eglTerminate(mEglDisplay);
                 mEglDisplay = null;
             }
         }
 
         private void throwEglException(String function) {
-            throwEglException(function, mEgl.eglGetError());
+            throwEglException(function, EGL14.eglGetError());
         }
 
         public static void throwEglException(String function, int error) {
@@ -901,35 +972,35 @@ public class TextureView extends android.view.TextureView implements ISurface {
 
         public static String getErrorString(int error) {
             switch (error) {
-                case EGL10.EGL_SUCCESS:
+                case EGL14.EGL_SUCCESS:
                     return "EGL_SUCCESS";
-                case EGL10.EGL_NOT_INITIALIZED:
+                case EGL14.EGL_NOT_INITIALIZED:
                     return "EGL_NOT_INITIALIZED";
-                case EGL10.EGL_BAD_ACCESS:
+                case EGL14.EGL_BAD_ACCESS:
                     return "EGL_BAD_ACCESS";
-                case EGL10.EGL_BAD_ALLOC:
+                case EGL14.EGL_BAD_ALLOC:
                     return "EGL_BAD_ALLOC";
-                case EGL10.EGL_BAD_ATTRIBUTE:
+                case EGL14.EGL_BAD_ATTRIBUTE:
                     return "EGL_BAD_ATTRIBUTE";
-                case EGL10.EGL_BAD_CONFIG:
+                case EGL14.EGL_BAD_CONFIG:
                     return "EGL_BAD_CONFIG";
-                case EGL10.EGL_BAD_CONTEXT:
+                case EGL14.EGL_BAD_CONTEXT:
                     return "EGL_BAD_CONTEXT";
-                case EGL10.EGL_BAD_CURRENT_SURFACE:
+                case EGL14.EGL_BAD_CURRENT_SURFACE:
                     return "EGL_BAD_CURRENT_SURFACE";
-                case EGL10.EGL_BAD_DISPLAY:
+                case EGL14.EGL_BAD_DISPLAY:
                     return "EGL_BAD_DISPLAY";
-                case EGL10.EGL_BAD_MATCH:
+                case EGL14.EGL_BAD_MATCH:
                     return "EGL_BAD_MATCH";
-                case EGL10.EGL_BAD_NATIVE_PIXMAP:
+                case EGL14.EGL_BAD_NATIVE_PIXMAP:
                     return "EGL_BAD_NATIVE_PIXMAP";
-                case EGL10.EGL_BAD_NATIVE_WINDOW:
+                case EGL14.EGL_BAD_NATIVE_WINDOW:
                     return "EGL_BAD_NATIVE_WINDOW";
-                case EGL10.EGL_BAD_PARAMETER:
+                case EGL14.EGL_BAD_PARAMETER:
                     return "EGL_BAD_PARAMETER";
-                case EGL10.EGL_BAD_SURFACE:
+                case EGL14.EGL_BAD_SURFACE:
                     return "EGL_BAD_SURFACE";
-                case EGL11.EGL_CONTEXT_LOST:
+                case EGL14.EGL_CONTEXT_LOST:
                     return "EGL_CONTEXT_LOST";
                 default:
                     return "0x" + Integer.toHexString(error).toUpperCase(Locale.US);
@@ -1032,7 +1103,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
             mHaveEglContext = false;
             mHaveEglSurface = false;
             try {
-                GL10 gl = null;
+                //GL10 gl = null;
                 boolean createEglContext = false;
                 boolean createEglSurface = false;
                 boolean createGlInterface = false;
@@ -1281,9 +1352,9 @@ public class TextureView extends android.view.TextureView implements ISurface {
                     }
                     int swapError = mEglHelper.swap();
                     switch (swapError) {
-                        case EGL10.EGL_SUCCESS:
+                        case EGL14.EGL_SUCCESS:
                             break;
-                        case EGL11.EGL_CONTEXT_LOST:
+                        case EGL14.EGL_CONTEXT_LOST:
                             if (LOG_SURFACE) {
                                 Log.i("RajawaliGLThread", "egl context lost tid=" + getId());
                             }
