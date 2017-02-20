@@ -4,10 +4,12 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.SurfaceTexture;
+import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.Surface;
 import android.view.View;
 import org.rajawali3d.R;
 import org.rajawali3d.renderer.ISurfaceRenderer;
@@ -34,6 +36,8 @@ import android.opengl.EGLContext;
 import android.opengl.EGLDisplay;
 import android.opengl.EGLExt;
 import android.opengl.EGLSurface;
+
+import javax.microedition.khronos.opengles.GL10;
 
 /**
  * Rajawali version of a {@link TextureView}. If you plan on using Rajawali with a {@link TextureView},
@@ -129,8 +133,8 @@ public class TextureView extends android.view.TextureView implements ISurface {
         final int glesMajorVersion = 3;
         setEGLContextClientVersion(glesMajorVersion);
 
-        setEGLConfigChooser(new RajawaliEGLConfigChooser(glesMajorVersion, mAntiAliasingConfig, mMultiSampleCount,
-            mBitsRed, mBitsGreen, mBitsBlue, mBitsAlpha, mBitsDepth));
+        //setEGLConfigChooser(new RajawaliEGLConfigChooser(glesMajorVersion, mAntiAliasingConfig, mMultiSampleCount,
+        //    mBitsRed, mBitsGreen, mBitsBlue, mBitsAlpha, mBitsDepth));
     }
 
     private void checkRenderThreadState() {
@@ -268,9 +272,9 @@ public class TextureView extends android.view.TextureView implements ISurface {
 
         // Configure the EGL stuff
         checkRenderThreadState();
-        if (mEGLConfigChooser == null) {
-            throw new IllegalStateException("You must set an EGL config before attempting to set a surface renderer.");
-        }
+        //if (mEGLConfigChooser == null) {
+        //    throw new IllegalStateException("You must set an EGL config before attempting to set a surface renderer.");
+        //}
         if (mEGLContextFactory == null) {
             mEGLContextFactory = new DefaultContextFactory();
         }
@@ -384,8 +388,8 @@ public class TextureView extends android.view.TextureView implements ISurface {
      */
     public void setEGLConfigChooser(int redSize, int greenSize, int blueSize,
                                     int alphaSize, int depthSize, int stencilSize) {
-        setEGLConfigChooser(new ComponentSizeChooser(redSize, greenSize,
-            blueSize, alphaSize, depthSize, stencilSize));
+        //setEGLConfigChooser(new ComponentSizeChooser(redSize, greenSize,
+        //    blueSize, alphaSize, depthSize, stencilSize));
     }
 
     /**
@@ -572,156 +576,155 @@ public class TextureView extends android.view.TextureView implements ISurface {
     }
 
     private static class DefaultWindowSurfaceFactory implements EGLWindowSurfaceFactory {
-
         public EGLSurface createWindowSurface(EGLDisplay display,
-                                              EGLConfig config, Object nativeWindow) {
-            EGLSurface result = null;
-            try {
-                //result = EGL14.eglCreateWindowSurface(display, config, nativeWindow, null);
-                int[] surfaceAttribs = {
-                        EGL14.EGL_NONE
-                };
-                EGLSurface eglSurface = EGL14.eglCreateWindowSurface(display, config, nativeWindow,
-                        surfaceAttribs, 0);
-                if (eglSurface == null) {
-                    throw new RuntimeException("surface was null");
-                }
-                return eglSurface;
-            } catch (IllegalArgumentException e) {
-                // This exception indicates that the surface flinger surface
-                // is not valid. This can happen if the surface flinger surface has
-                // been torn down, but the application has not yet been
-                // notified via SurfaceTexture.Callback.surfaceDestroyed.
-                // In theory the application should be notified first,
-                // but in practice sometimes it is not. See b/4588890
-                Log.e(TAG, "eglCreateWindowSurface", e);
+                                              EGLConfig config, Object surface) {
+            if (!(surface instanceof Surface) && !(surface instanceof SurfaceTexture)) {
+                throw new RuntimeException("invalid surface: " + surface);
             }
-            return result;
+
+            // Create a window surface, and attach it to the Surface we received.
+            int[] surfaceAttribs = {
+              EGL14.EGL_NONE
+            };
+            EGLSurface eglSurface = EGL14.eglCreateWindowSurface(display, config, surface,
+              surfaceAttribs, 0);
+            checkEglError("eglCreateWindowSurface");
+            if (eglSurface == null) {
+                throw new RuntimeException("surface was null");
+            }
+            return eglSurface;
         }
 
         public void destroySurface(EGLDisplay display,
                                    EGLSurface surface) {
             EGL14.eglDestroySurface(display, surface);
         }
-    }
 
-    private abstract class BaseConfigChooser
-        implements EGLConfigChooser {
-        public BaseConfigChooser(int[] configSpec) {
-            mConfigSpec = filterConfigSpec(configSpec);
-        }
-
-        public EGLConfig chooseConfig(EGLDisplay display) {
-            int[] num_config = new int[1];
-            if (!EGL14.eglChooseConfig(display, mConfigSpec, null, 0,
-                num_config)) {
-                throw new IllegalArgumentException("eglChooseConfig failed");
+        private void checkEglError(String msg) {
+            int error;
+            if ((error = EGL14.eglGetError()) != EGL14.EGL_SUCCESS) {
+                throw new RuntimeException(msg + ": EGL error: 0x" + Integer.toHexString(error));
             }
-
-
-            int numConfigs = num_config[0];
-
-            if (numConfigs <= 0) {
-                throw new IllegalArgumentException(
-                    "No configs match configSpec");
-            }
-
-            EGLConfig[] configs = new EGLConfig[numConfigs];
-            if (!egl.eglChooseConfig(display, mConfigSpec, configs, numConfigs,
-                num_config)) {
-                throw new IllegalArgumentException("eglChooseConfig#2 failed");
-            }
-            EGLConfig config = chooseConfig(egl, display, configs);
-            if (config == null) {
-                throw new IllegalArgumentException("No config chosen");
-            }
-            return config;
-        }
-
-        abstract EGLConfig chooseConfig(EGL14 egl, EGLDisplay display,
-                                        EGLConfig[] configs);
-
-        protected int[] mConfigSpec;
-
-        private int[] filterConfigSpec(int[] configSpec) {
-            if (mEGLContextClientVersion != 2 && mEGLContextClientVersion != 3) {
-                return configSpec;
-            }
-            /* We know none of the subclasses define EGL_RENDERABLE_TYPE.
-             * And we know the configSpec is well formed.
-             */
-            int len = configSpec.length;
-            int[] newConfigSpec = new int[len + 2];
-            System.arraycopy(configSpec, 0, newConfigSpec, 0, len - 1);
-            newConfigSpec[len - 1] = EGL14.EGL_RENDERABLE_TYPE;
-            if (mEGLContextClientVersion == 2) {
-                newConfigSpec[len] = RajawaliEGLConfigChooser.EGL_OPENGL_ES2_BIT;  /* EGL_OPENGL_ES2_BIT */
-            } else {
-                newConfigSpec[len] = RajawaliEGLConfigChooser.EGL_OPENGL_ES3_BIT_KHR; /* EGL_OPENGL_ES3_BIT_KHR */
-            }
-            newConfigSpec[len + 1] = EGL14.EGL_NONE;
-            return newConfigSpec;
         }
     }
 
-    /**
-     * Choose a configuration with exactly the specified r,g,b,a sizes,
-     * and at least the specified depth and stencil sizes.
-     */
-    private class ComponentSizeChooser extends BaseConfigChooser {
-        public ComponentSizeChooser(int redSize, int greenSize, int blueSize,
-                                    int alphaSize, int depthSize, int stencilSize) {
-            super(new int[]{
-                EGL14.EGL_RED_SIZE, redSize,
-                EGL14.EGL_GREEN_SIZE, greenSize,
-                EGL14.EGL_BLUE_SIZE, blueSize,
-                EGL14.EGL_ALPHA_SIZE, alphaSize,
-                EGL14.EGL_DEPTH_SIZE, depthSize,
-                EGL14.EGL_STENCIL_SIZE, stencilSize,
-                EGL14.EGL_NONE});
-            mValue = new int[1];
-            mRedSize = redSize;
-            mGreenSize = greenSize;
-            mBlueSize = blueSize;
-            mAlphaSize = alphaSize;
-            mDepthSize = depthSize;
-            mStencilSize = stencilSize;
-        }
-
-        @Override
-        public EGLConfig chooseConfig(EGL14 egl, EGLDisplay display, EGLConfig[] configs) {
-            for (EGLConfig config : configs) {
-                int d = findConfigAttrib(egl, display, config, EGL14.EGL_DEPTH_SIZE, 0);
-                int s = findConfigAttrib(egl, display, config, EGL14.EGL_STENCIL_SIZE, 0);
-                if ((d >= mDepthSize) && (s >= mStencilSize)) {
-                    int r = findConfigAttrib(egl, display, config, EGL14.EGL_RED_SIZE, 0);
-                    int g = findConfigAttrib(egl, display, config, EGL14.EGL_GREEN_SIZE, 0);
-                    int b = findConfigAttrib(egl, display, config, EGL14.EGL_BLUE_SIZE, 0);
-                    int a = findConfigAttrib(egl, display, config, EGL14.EGL_ALPHA_SIZE, 0);
-                    if ((r == mRedSize) && (g == mGreenSize) && (b == mBlueSize) && (a == mAlphaSize)) {
-                        return config;
-                    }
-                }
-            }
-            return null;
-        }
-
-        private int findConfigAttrib(EGL14 egl, EGLDisplay display, EGLConfig config, int attribute, int defaultValue) {
-            if (egl.eglGetConfigAttrib(display, config, attribute, mValue)) {
-                return mValue[0];
-            }
-            return defaultValue;
-        }
-
-        private int[] mValue;
-        // Subclasses can adjust these values:
-        protected int mRedSize;
-        protected int mGreenSize;
-        protected int mBlueSize;
-        protected int mAlphaSize;
-        protected int mDepthSize;
-        protected int mStencilSize;
-    }
+//    private abstract class BaseConfigChooser
+//        implements EGLConfigChooser {
+//        public BaseConfigChooser(int[] configSpec) {
+//            mConfigSpec = filterConfigSpec(configSpec);
+//        }
+//
+//        public EGLConfig chooseConfig(EGLDisplay display) {
+//            int[] num_config = new int[1];
+//            if (!EGL14.eglChooseConfig(display, mConfigSpec, null, 0,
+//                num_config)) {
+//                throw new IllegalArgumentException("eglChooseConfig failed");
+//            }
+//
+//
+//            int numConfigs = num_config[0];
+//
+//            if (numConfigs <= 0) {
+//                throw new IllegalArgumentException(
+//                    "No configs match configSpec");
+//            }
+//
+//            EGLConfig[] configs = new EGLConfig[numConfigs];
+//            if (!EGL14.eglChooseConfig(display, mConfigSpec, configs, numConfigs,
+//                num_config)) {
+//                throw new IllegalArgumentException("eglChooseConfig#2 failed");
+//            }
+//            EGLConfig config = chooseConfig(egl, display, configs);
+//            if (config == null) {
+//                throw new IllegalArgumentException("No config chosen");
+//            }
+//            return config;
+//        }
+//
+//        abstract EGLConfig chooseConfig(EGLDisplay display,
+//                                        EGLConfig[] configs);
+//
+//        protected int[] mConfigSpec;
+//
+//        private int[] filterConfigSpec(int[] configSpec) {
+//            if (mEGLContextClientVersion != 2 && mEGLContextClientVersion != 3) {
+//                return configSpec;
+//            }
+//            /* We know none of the subclasses define EGL_RENDERABLE_TYPE.
+//             * And we know the configSpec is well formed.
+//             */
+//            int len = configSpec.length;
+//            int[] newConfigSpec = new int[len + 2];
+//            System.arraycopy(configSpec, 0, newConfigSpec, 0, len - 1);
+//            newConfigSpec[len - 1] = EGL14.EGL_RENDERABLE_TYPE;
+//            if (mEGLContextClientVersion == 2) {
+//                newConfigSpec[len] = RajawaliEGLConfigChooser.EGL_OPENGL_ES2_BIT;  /* EGL_OPENGL_ES2_BIT */
+//            } else {
+//                newConfigSpec[len] = RajawaliEGLConfigChooser.EGL_OPENGL_ES3_BIT_KHR; /* EGL_OPENGL_ES3_BIT_KHR */
+//            }
+//            newConfigSpec[len + 1] = EGL14.EGL_NONE;
+//            return newConfigSpec;
+//        }
+//    }
+//
+//    /**
+//     * Choose a configuration with exactly the specified r,g,b,a sizes,
+//     * and at least the specified depth and stencil sizes.
+//     */
+//    private class ComponentSizeChooser extends BaseConfigChooser {
+//        public ComponentSizeChooser(int redSize, int greenSize, int blueSize,
+//                                    int alphaSize, int depthSize, int stencilSize) {
+//            super(new int[]{
+//                EGL14.EGL_RED_SIZE, redSize,
+//                EGL14.EGL_GREEN_SIZE, greenSize,
+//                EGL14.EGL_BLUE_SIZE, blueSize,
+//                EGL14.EGL_ALPHA_SIZE, alphaSize,
+//                EGL14.EGL_DEPTH_SIZE, depthSize,
+//                EGL14.EGL_STENCIL_SIZE, stencilSize,
+//                EGL14.EGL_NONE});
+//            mValue = new int[1];
+//            mRedSize = redSize;
+//            mGreenSize = greenSize;
+//            mBlueSize = blueSize;
+//            mAlphaSize = alphaSize;
+//            mDepthSize = depthSize;
+//            mStencilSize = stencilSize;
+//        }
+//
+//        @Override
+//        public EGLConfig chooseConfig(EGLDisplay display, EGLConfig[] configs) {
+//            for (EGLConfig config : configs) {
+//                int d = findConfigAttrib(egl, display, config, EGL14.EGL_DEPTH_SIZE, 0);
+//                int s = findConfigAttrib(egl, display, config, EGL14.EGL_STENCIL_SIZE, 0);
+//                if ((d >= mDepthSize) && (s >= mStencilSize)) {
+//                    int r = findConfigAttrib(egl, display, config, EGL14.EGL_RED_SIZE, 0);
+//                    int g = findConfigAttrib(egl, display, config, EGL14.EGL_GREEN_SIZE, 0);
+//                    int b = findConfigAttrib(egl, display, config, EGL14.EGL_BLUE_SIZE, 0);
+//                    int a = findConfigAttrib(egl, display, config, EGL14.EGL_ALPHA_SIZE, 0);
+//                    if ((r == mRedSize) && (g == mGreenSize) && (b == mBlueSize) && (a == mAlphaSize)) {
+//                        return config;
+//                    }
+//                }
+//            }
+//            return null;
+//        }
+//
+//        private int findConfigAttrib(EGL14 egl, EGLDisplay display, EGLConfig config, int attribute, int defaultValue) {
+//            if (egl.eglGetConfigAttrib(display, config, attribute, mValue)) {
+//                return mValue[0];
+//            }
+//            return defaultValue;
+//        }
+//
+//        private int[] mValue;
+//        // Subclasses can adjust these values:
+//        protected int mRedSize;
+//        protected int mGreenSize;
+//        protected int mBlueSize;
+//        protected int mAlphaSize;
+//        protected int mDepthSize;
+//        protected int mStencilSize;
+//    }
 
     /**
      * An EGL helper class.
@@ -732,6 +735,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
         EGLDisplay mEglDisplay;
         public EGLSurface mEglSurface;
         EGLConfig mEglConfig;
+        javax.microedition.khronos.egl.EGLConfig mEglConfig2;
         EGLContext mEglContext;
 
         public EglHelper(WeakReference<TextureView> glSurfaceViewWeakRef) {
@@ -746,7 +750,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
         public static final int FLAG_TRY_GLES3 = 0x02;
         private static final int EGL_RECORDABLE_ANDROID = 0x3142;
 
-        private EGLConfig EGL14(int flags, int version) {
+        private EGLConfig getConfig(int flags, int version) {
             int renderableType = EGL14.EGL_OPENGL_ES2_BIT;
             if (version >= 3) {
                 renderableType |= EGLExt.EGL_OPENGL_ES3_BIT_KHR;
@@ -814,12 +818,12 @@ public class TextureView extends android.view.TextureView implements ISurface {
                 mEglContext = null;
             } else {
                 mEglConfig = getConfig(FLAG_RECORDABLE | FLAG_TRY_GLES3, 3);
-
+                //mEglConfig2 =
                 /*
                 * Create an EGL context. We want to do this as rarely as we can, because an
                 * EGL context is a somewhat heavy object.
                 */
-                mEglContext = view.mEGLContextFactory.createContext(EGL14, mEglDisplay, mEglConfig);
+                mEglContext = view.mEGLContextFactory.createContext(mEglDisplay, mEglConfig);
             }
             if (mEglContext == null || mEglContext == EGL14.EGL_NO_CONTEXT) {
                 mEglContext = null;
@@ -861,7 +865,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
              */
             TextureView view = mRajawaliTextureViewWeakRef.get();
             if (view != null) {
-                mEglSurface = view.mEGLWindowSurfaceFactory.createWindowSurface(EGL14,
+                mEglSurface = view.mEGLWindowSurfaceFactory.createWindowSurface(
                     mEglDisplay, mEglConfig, view.getSurfaceTexture());
             } else {
                 mEglSurface = null;
@@ -896,9 +900,9 @@ public class TextureView extends android.view.TextureView implements ISurface {
          *
          * @return {@link GL} The GL interface for the current context.
          */
-        GL createGL() {
-            return mEglContext.getGL();
-        }
+//        GL createGL() {
+//            return mEglContext.getGL();
+//        }
 
         /**
          * Display the current render surface.
@@ -926,7 +930,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
                     EGL14.EGL_NO_CONTEXT);
                 TextureView view = mRajawaliTextureViewWeakRef.get();
                 if (view != null) {
-                    view.mEGLWindowSurfaceFactory.destroySurface(mEgl, mEglDisplay, mEglSurface);
+                    view.mEGLWindowSurfaceFactory.destroySurface(mEglDisplay, mEglSurface);
                 }
                 mEglSurface = null;
             }
@@ -939,7 +943,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
             if (mEglContext != null) {
                 TextureView view = mRajawaliTextureViewWeakRef.get();
                 if (view != null) {
-                    view.mEGLContextFactory.destroyContext(EGL14, mEglDisplay, mEglContext);
+                    view.mEGLContextFactory.destroyContext(mEglDisplay, mEglContext);
                 }
                 mEglContext = null;
             }
@@ -1103,7 +1107,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
             mHaveEglContext = false;
             mHaveEglSurface = false;
             try {
-                //GL10 gl = null;
+                GL10 gl = null;
                 boolean createEglContext = false;
                 boolean createEglSurface = false;
                 boolean createGlInterface = false;
@@ -1313,9 +1317,10 @@ public class TextureView extends android.view.TextureView implements ISurface {
                     }
 
                     if (createGlInterface) {
-                        gl = (GL10) mEglHelper.createGL();
+                        //gl = (GL10) mEglHelper.createGL();
+                        gl = null;
 
-                        sGLThreadManager.checkGLDriver(gl);
+                        sGLThreadManager.checkGLDriver();
                         createGlInterface = false;
                     }
 
@@ -1325,7 +1330,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
                         }
                         TextureView view = mRajawaliTextureViewWeakRef.get();
                         if (view != null) {
-                            view.mRendererDelegate.mRenderer.onRenderSurfaceCreated(mEglHelper.mEglConfig, gl, -1, -1);
+                            view.mRendererDelegate.mRenderer.onRenderSurfaceCreated(mEglHelper.mEglConfig2, gl, -1, -1);
                         }
                         createEglContext = false;
                     }
@@ -1652,10 +1657,10 @@ public class TextureView extends android.view.TextureView implements ISurface {
             }
         }
 
-        public synchronized void checkGLDriver(GL10 gl) {
+        public synchronized void checkGLDriver() {
             if (!mGLESDriverCheckComplete) {
                 checkGLESVersion();
-                String renderer = gl.glGetString(GL10.GL_RENDERER);
+                String renderer = GLES20.glGetString(GLES20.GL_RENDERER);
                 if (mGLESVersion < kGLES_20) {
                     mMultipleGLESContextsAllowed =
                         !renderer.startsWith(kMSM7K_RENDERER_PREFIX);
