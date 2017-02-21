@@ -9,6 +9,7 @@ import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.util.AttributeSet;
 import android.util.Log;
+//import android.view.Surface;
 import android.view.Surface;
 import android.view.View;
 import org.rajawali3d.R;
@@ -817,7 +818,9 @@ public class TextureView extends android.view.TextureView implements ISurface {
                 mEglConfig = null;
                 mEglContext = null;
             } else {
-                mEglConfig = getConfig(FLAG_RECORDABLE | FLAG_TRY_GLES3, 3);
+                //mEglConfig = getConfig(FLAG_RECORDABLE | FLAG_TRY_GLES3, 3);
+                mEglConfig = getConfig(FLAG_TRY_GLES3, 2);
+
                 //mEglConfig2 =
                 /*
                 * Create an EGL context. We want to do this as rarely as we can, because an
@@ -866,7 +869,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
             TextureView view = mRajawaliTextureViewWeakRef.get();
             if (view != null) {
                 mEglSurface = view.mEGLWindowSurfaceFactory.createWindowSurface(
-                    mEglDisplay, mEglConfig, view.getSurfaceTexture());
+                    mEglDisplay, mEglConfig, new Surface(view.getSurfaceTexture()));
             } else {
                 mEglSurface = null;
             }
