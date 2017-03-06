@@ -3,10 +3,13 @@ package org.rajawali3d.view;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.res.TypedArray;
+import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.opengl.GLES20;
+import android.opengl.GLES30;
 import android.opengl.GLSurfaceView;
 import android.os.Build;
+import android.os.Environment;
 import android.util.AttributeSet;
 import android.util.Log;
 //import android.view.Surface;
@@ -15,11 +18,15 @@ import android.view.View;
 import org.rajawali3d.R;
 import org.rajawali3d.record.EglCore;
 import org.rajawali3d.record.GlUtil;
+import org.rajawali3d.record.TextureMovieEncoder2;
+import org.rajawali3d.record.VideoEncoderCore;
 import org.rajawali3d.record.WindowSurface;
 import org.rajawali3d.renderer.ISurfaceRenderer;
 import org.rajawali3d.util.Capabilities;
 import org.rajawali3d.util.egl.RajawaliEGLConfigChooser;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Locale;
@@ -551,6 +558,17 @@ public class TextureView extends android.view.TextureView implements ISurface {
         //public EglHelper mEglHelper;
         protected EglCore mEglCore;
         protected WindowSurface mWindowSurface;
+
+
+        private boolean mRecordingEnabled = true;
+        private File mOutputFile;
+        private WindowSurface mInputWindowSurface;
+        private TextureMovieEncoder2 mVideoEncoder;
+        private int mRecordMethod;
+        private boolean mRecordedPrevious;
+        private Rect mVideoRect = new Rect();
+
+
         /**
          * Set once at thread construction time, nulled out when the parent view is garbage
          * called. This weak reference allows the TextureView to be garbage collected while
@@ -581,6 +599,11 @@ public class TextureView extends android.view.TextureView implements ISurface {
                     }
                     mWindowSurface = new WindowSurface(mEglCore, surfaceTexture);
                     mWindowSurface.makeCurrent();
+
+                    if (mRecordingEnabled) {
+                        mOutputFile = new File(Environment.getExternalStorageDirectory().getPath(), "fbo-gl-recording.mp4");
+                    }
+
                 } else {
                     throw new NullPointerException("TextureView is null");
                 }
@@ -590,6 +613,9 @@ public class TextureView extends android.view.TextureView implements ISurface {
 
             }
 
+            if (mRecordingEnabled) {
+                startEncoder();
+            }
         }
 
         @Override
@@ -620,7 +646,44 @@ public class TextureView extends android.view.TextureView implements ISurface {
         }
 
 
+        private void recordVideo() {
+            if (!mRecordingEnabled)
+                return;
+
+            mVideoEncoder.frameAvailableSoon();
+            mInputWindowSurface.makeCurrentReadFrom(mWindowSurface);
+            // Clear the pixels we're not going to overwrite with the blit.  Once again,
+            // this is excessive -- we don't need to clear the entire screen.
+            //GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            //GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+            GlUtil.checkGlError("before glBlitFramebuffer");
+            Log.v(TAG, "glBlitFramebuffer: 0,0," + mWindowSurface.getWidth() + "," +
+                    mWindowSurface.getHeight() + "  " + mVideoRect.left + "," +
+                    mVideoRect.top + "," + mVideoRect.right + "," + mVideoRect.bottom +
+                    "  COLOR_BUFFER GL_NEAREST");
+            GLES30.glBlitFramebuffer(
+                    0, 0, mWindowSurface.getWidth(), mWindowSurface.getHeight(),
+                    mVideoRect.left, mVideoRect.top, mVideoRect.right, mVideoRect.bottom,
+                    GLES30.GL_COLOR_BUFFER_BIT, GLES30.GL_NEAREST);
+            int err;
+            if ((err = GLES30.glGetError()) != GLES30.GL_NO_ERROR) {
+                Log.w(TAG, "ERROR: glBlitFramebuffer failed: 0x" +
+                        Integer.toHexString(err));
+            }
+            long timeStampNanos = System.nanoTime();
+            mInputWindowSurface.setPresentationTime(timeStampNanos);
+            mInputWindowSurface.swapBuffers();
+
+            // Now swap the display buffer.
+            mWindowSurface.makeCurrent();
+
+        }
+
         private void releaseGl() {
+            if (mRecordingEnabled) {
+                stopEncoder();
+            }
+
             GlUtil.checkGlError("releaseGl start");
 
             int[] values = new int[1];
@@ -649,6 +712,61 @@ public class TextureView extends android.view.TextureView implements ISurface {
             }
         }
 
+        private void startEncoder() {
+            Log.d(TAG, "starting to record");
+            // Record at 1280x720, regardless of the window dimensions.  The encoder may
+            // explode if given "strange" dimensions, e.g. a width that is not a multiple
+            // of 16.  We can box it as needed to preserve dimensions.
+            final int BIT_RATE = 4000000;   // 4Mbps
+            final int VIDEO_WIDTH = 1280;
+            final int VIDEO_HEIGHT = 720;
+            int windowWidth = mWindowSurface.getWidth();
+            int windowHeight = mWindowSurface.getHeight();
+            float windowAspect = (float) windowHeight / (float) windowWidth;
+            int outWidth, outHeight;
+            if (VIDEO_HEIGHT > VIDEO_WIDTH * windowAspect) {
+                // limited by narrow width; reduce height
+                outWidth = VIDEO_WIDTH;
+                outHeight = (int) (VIDEO_WIDTH * windowAspect);
+            } else {
+                // limited by short height; restrict width
+                outHeight = VIDEO_HEIGHT;
+                outWidth = (int) (VIDEO_HEIGHT / windowAspect);
+            }
+            int offX = (VIDEO_WIDTH - outWidth) / 2;
+            int offY = (VIDEO_HEIGHT - outHeight) / 2;
+            mVideoRect.set(offX, offY, offX + outWidth, offY + outHeight);
+            Log.d(TAG, "Adjusting window " + windowWidth + "x" + windowHeight +
+                    " to +" + offX + ",+" + offY + " " +
+                    mVideoRect.width() + "x" + mVideoRect.height());
+
+            VideoEncoderCore encoderCore;
+            try {
+                encoderCore = new VideoEncoderCore(VIDEO_WIDTH, VIDEO_HEIGHT,
+                        BIT_RATE, mOutputFile);
+            } catch (IOException ioe) {
+                throw new RuntimeException(ioe);
+            }
+            mInputWindowSurface = new WindowSurface(mEglCore, encoderCore.getInputSurface(), true);
+            mVideoEncoder = new TextureMovieEncoder2(encoderCore);
+        }
+
+        /**
+         * Stops the video encoder if it's running.
+         */
+        private void stopEncoder() {
+            if (mVideoEncoder != null) {
+                Log.d(TAG, "stopping recorder, mVideoEncoder=" + mVideoEncoder);
+                mVideoEncoder.stopRecording();
+                // TODO: wait (briefly) until it finishes shutting down so we know file is
+                //       complete, or have a callback that updates the UI
+                mVideoEncoder = null;
+            }
+            if (mInputWindowSurface != null) {
+                mInputWindowSurface.release();
+                mInputWindowSurface = null;
+            }
+        }
         private void guardedRun() throws InterruptedException {
             //mEglHelper = new EglHelper(mRajawaliTextureViewWeakRef);
             mHaveEglContext = false;
@@ -907,6 +1025,8 @@ public class TextureView extends android.view.TextureView implements ISurface {
                         }
                     }
                     //int swapError = mEglHelper.swap();
+                    Log.d(TAG, "recordVideo");
+                    recordVideo();
                     mWindowSurface.swapBuffers();
 
 //                    switch (swapError) {
