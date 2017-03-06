@@ -9,21 +9,21 @@ import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.util.AttributeSet;
 import android.util.Log;
-//import android.view.Surface;
-import android.view.Surface;
 import android.view.View;
+
 import org.rajawali3d.R;
 import org.rajawali3d.record.EglCore;
 import org.rajawali3d.record.GlUtil;
 import org.rajawali3d.record.WindowSurface;
 import org.rajawali3d.renderer.ISurfaceRenderer;
 import org.rajawali3d.util.Capabilities;
-import org.rajawali3d.util.egl.RajawaliEGLConfigChooser;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.Locale;
 
+import javax.microedition.khronos.opengles.GL10;
+
+//import android.view.Surface;
 //import javax.microedition.khronos.egl.EGL14;
 //import javax.microedition.khronos.egl.EGL11;
 //import javax.microedition.khronos.egl.EGLConfig;
@@ -34,24 +34,15 @@ import java.util.Locale;
 //import javax.microedition.khronos.opengles.GL;
 //import javax.microedition.khronos.opengles.GL10;
 
-import android.opengl.EGL14;
-import android.opengl.EGLConfig;
-import android.opengl.EGLContext;
-import android.opengl.EGLDisplay;
-import android.opengl.EGLExt;
-import android.opengl.EGLSurface;
-
-import javax.microedition.khronos.opengles.GL10;
-
 //import javax.microedition.khronos.opengles.GL10;
 
 /**
- * Rajawali version of a {@link TextureView}. If you plan on using Rajawali with a {@link TextureView},
+ * Rajawali version of a {@link RecordTextureView}. If you plan on using Rajawali with a {@link RecordTextureView},
  * it is imperative that you extend this class or life cycle events may not function as you expect.
  *
  * @author Jared Woolston (jwoolston@tenkiv.com)
  */
-public class TextureView extends android.view.TextureView implements ISurface {
+public class RecordTextureView extends android.view.TextureView implements ISurface {
     private final static String TAG = "TextureView";
     private final static boolean LOG_ATTACH_DETACH = true;
     private final static boolean LOG_THREADS = true;
@@ -63,7 +54,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
 
     private static final GLThreadManager sGLThreadManager = new GLThreadManager();
 
-    private final WeakReference<TextureView> mThisWeakRef = new WeakReference<>(this);
+    private final WeakReference<RecordTextureView> mThisWeakRef = new WeakReference<>(this);
 
     protected double mFrameRate = 60.0;
     protected int mRenderMode = RENDERMODE_WHEN_DIRTY;
@@ -86,22 +77,22 @@ public class TextureView extends android.view.TextureView implements ISurface {
 
     public RendererDelegate mRendererDelegate;
 
-    public TextureView(Context context) {
+    public RecordTextureView(Context context) {
         super(context);
     }
 
-    public TextureView(Context context, AttributeSet attrs) {
+    public RecordTextureView(Context context, AttributeSet attrs) {
         super(context, attrs);
         applyAttributes(context, attrs);
     }
 
-    public TextureView(Context context, AttributeSet attrs, int defStyleAttr) {
+    public RecordTextureView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         applyAttributes(context, attrs);
     }
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    public TextureView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
+    public RecordTextureView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
         applyAttributes(context, attrs);
     }
@@ -289,7 +280,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
 //        }
 
         // Create our delegate
-        final RendererDelegate delegate = new TextureView.RendererDelegate(renderer, this);
+        final RendererDelegate delegate = new RecordTextureView.RendererDelegate(renderer, this);
         // Create the GL thread
         mGLThread = new GLThread(mThisWeakRef);
         mGLThread.start();
@@ -479,10 +470,10 @@ public class TextureView extends android.view.TextureView implements ISurface {
 
     public static class RendererDelegate implements SurfaceTextureListener {
 
-        final TextureView      mRajawaliTextureView;
+        final RecordTextureView mRajawaliTextureView;
         public final ISurfaceRenderer mRenderer;
 
-        public RendererDelegate(ISurfaceRenderer renderer, TextureView textureView) {
+        public RendererDelegate(ISurfaceRenderer renderer, RecordTextureView textureView) {
             mRenderer = renderer;
             mRajawaliTextureView = textureView;
             mRenderer.setFrameRate(mRajawaliTextureView.mRenderMode == ISurface.RENDERMODE_WHEN_DIRTY ?
@@ -549,16 +540,16 @@ public class TextureView extends android.view.TextureView implements ISurface {
         // End of member variables protected by the sGLThreadManager monitor.
 
         //public EglHelper mEglHelper;
-        protected EglCore mEglCore;
+        public EglCore mEglCore;
         protected WindowSurface mWindowSurface;
         /**
          * Set once at thread construction time, nulled out when the parent view is garbage
          * called. This weak reference allows the TextureView to be garbage collected while
          * the RajawaliGLThread is still alive.
          */
-        public WeakReference<TextureView> mRajawaliTextureViewWeakRef;
+        public WeakReference<RecordTextureView> mRajawaliTextureViewWeakRef;
 
-        GLThread(WeakReference<TextureView> glSurfaceViewWeakRef) {
+        GLThread(WeakReference<RecordTextureView> glSurfaceViewWeakRef) {
             super();
             mWidth = 0;
             mHeight = 0;
@@ -573,7 +564,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
                 mEglCore = new EglCore(null, EglCore.FLAG_RECORDABLE | EglCore.FLAG_TRY_GLES3);
 
                 //mEglCore = new EglCore(null, EglCore.FLAG_TRY_GLES3);
-                TextureView tv = mRajawaliTextureViewWeakRef.get();
+                RecordTextureView tv = mRajawaliTextureViewWeakRef.get();
                 if (tv != null) {
                     SurfaceTexture surfaceTexture = tv.getSurfaceTexture();
                     if (surfaceTexture == null) {
@@ -718,7 +709,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
 
                             // When pausing, optionally release the EGL Context:
                             if (pausing && mHaveEglContext) {
-                                TextureView view = mRajawaliTextureViewWeakRef.get();
+                                RecordTextureView view = mRajawaliTextureViewWeakRef.get();
                                 boolean preserveEglContextOnPause = (view != null) && view.mPreserveEGLContextOnPause;
                                 if (!preserveEglContextOnPause || sGLThreadManager.shouldReleaseEGLContextWhenPausing()) {
                                     stopEglContextLocked();
@@ -879,7 +870,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
                         if (LOG_RENDERER) {
                             Log.w("RajawaliGLThread", "onSurfaceCreated");
                         }
-                        TextureView view = mRajawaliTextureViewWeakRef.get();
+                        RecordTextureView view = mRajawaliTextureViewWeakRef.get();
                         if (view != null) {
                             view.mRendererDelegate.mRenderer.onRenderSurfaceCreated(null, gl, -1, -1);
                         }
@@ -890,7 +881,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
                         if (LOG_RENDERER) {
                             Log.w("RajawaliGLThread", "onSurfaceChanged(" + w + ", " + h + ")");
                         }
-                        TextureView view = mRajawaliTextureViewWeakRef.get();
+                        RecordTextureView view = mRajawaliTextureViewWeakRef.get();
                         if (view != null) {
                             view.mRendererDelegate.mRenderer.onRenderSurfaceSizeChanged(gl, w, h);
                         }
@@ -901,7 +892,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
                         Log.w("RajawaliGLThread", "onDrawFrame tid=" + getId());
                     }
                     {
-                        TextureView view = mRajawaliTextureViewWeakRef.get();
+                        RecordTextureView view = mRajawaliTextureViewWeakRef.get();
                         if (view != null) {
                             view.mRendererDelegate.mRenderer.onRenderFrame(gl);
                         }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.rajawali3d.examples.examples;
+package org.rajawali3d.record;
 
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;

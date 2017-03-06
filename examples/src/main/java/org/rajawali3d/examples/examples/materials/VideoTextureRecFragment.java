@@ -25,11 +25,11 @@ import org.rajawali3d.animation.TranslateAnimation3D;
 import org.rajawali3d.cameras.Camera;
 import org.rajawali3d.examples.R;
 import org.rajawali3d.examples.examples.AExampleFragment;
-import org.rajawali3d.examples.examples.EglCore;
-import org.rajawali3d.examples.examples.GlUtil;
-import org.rajawali3d.examples.examples.TextureMovieEncoder2;
-import org.rajawali3d.examples.examples.VideoEncoderCore;
-import org.rajawali3d.examples.examples.WindowSurface;
+import org.rajawali3d.record.EglCore;
+import org.rajawali3d.record.GlUtil;
+import org.rajawali3d.record.TextureMovieEncoder2;
+import org.rajawali3d.record.VideoEncoderCore;
+import org.rajawali3d.record.WindowSurface;
 import org.rajawali3d.lights.PointLight;
 import org.rajawali3d.materials.Material;
 import org.rajawali3d.materials.methods.DiffuseMethod;
@@ -40,7 +40,6 @@ import org.rajawali3d.materials.textures.Texture;
 import org.rajawali3d.math.vector.Vector3;
 import org.rajawali3d.primitives.Cube;
 import org.rajawali3d.primitives.Plane;
-import org.rajawali3d.view.TextureView;
 
 import java.io.File;
 import java.io.IOException;
@@ -426,10 +425,10 @@ public class VideoTextureRecFragment extends AExampleFragment   {
 //                    }
 
                     //render get GLThread, thread get mEglHelper
-                    if (this.exampleFragment.mTextureView.mGLThread.mEglHelper != null) {
+                    //if (this.exampleFragment.mTextureView.mGLThread != null) {
 
-                        mInputWindowSurface.makeCurrentReadFrom(this.exampleFragment.mTextureView.mGLThread.mEglHelper.getEglSurface());
-                    }
+                    //    mInputWindowSurface.makeCurrentReadFrom(this.exampleFragment.mTextureView.mGLThread.mEglHelper.getEglSurface());
+                    //}
                     //mInputWindowSurface.makeCurrentReadFrom();
                     // Clear the pixels we're not going to overwrite with the blit.  Once again,
                     // this is excessive -- we don't need to clear the entire screen.
