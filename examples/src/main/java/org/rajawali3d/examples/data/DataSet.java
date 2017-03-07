@@ -72,6 +72,7 @@ import org.rajawali3d.examples.examples.scene.ObjectAddRemoveFragment;
 import org.rajawali3d.examples.examples.scene.SceneFrameCallbackFragment;
 import org.rajawali3d.examples.examples.ui.AnimatedTextureViewFragment;
 import org.rajawali3d.examples.examples.ui.CanvasTextFragment;
+import org.rajawali3d.examples.examples.ui.LottieTextureFragment;
 import org.rajawali3d.examples.examples.ui.ScrollingTextureViewFragment;
 import org.rajawali3d.examples.examples.ui.TransparentSurfaceFragment;
 import org.rajawali3d.examples.examples.ui.TwoDimensionalFragment;
@@ -145,6 +146,7 @@ public final class DataSet {
                 new Example(R.string.example_ui_texture_view_xml, AnimatedTextureViewFragment.class),
                 new Example(R.string.example_ui_scrolling_texture_view, ScrollingTextureViewFragment.class),
                 new Example(R.string.example_ui_view_to_texture, ViewToTextureFragment.class),
+                new Example(R.string.example_ui_lottie_to_texture, LottieTextureFragment.class),
         }));
         categories.add(new Category(R.string.category_optimizations, new Example[]{
                 new Example(R.string.example_optimizations_2000_planes, Optimized2000PlanesFragment.class),

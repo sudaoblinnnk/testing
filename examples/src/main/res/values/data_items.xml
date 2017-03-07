@@ -46,6 +46,7 @@
     <string name="example_ui_texture_view_xml">TextureView XML</string>
     <string name="example_ui_scrolling_texture_view">Scrolling TextureView</string>
     <string name="example_ui_view_to_texture">View To Texture</string>
+    <string name="example_ui_lottie_to_texture">Lottie To Texture</string>
 
     <string name="example_optimizations_2000_planes">2000 Textured Planes</string>
     <string name="example_optimizations_update_vertex_buffer">Update Vertex Buffer</string>

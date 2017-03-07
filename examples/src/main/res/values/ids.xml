@@ -6,5 +6,6 @@
     <item type="id" name="md2_fragment_button_wave"/>
     <item type="id" name="md2_fragment_button_loop_all"/>
     <item type="id" name="view_to_texture_frame" />
-    
+    <item type="id" name="lottie_to_texture_frame" />
+
 </resources>

@@ -54,4 +54,5 @@ dependencies {
     withVuforiaCompile project(':vr')
 
     wearApp project(':wear-example')
+    compile 'com.airbnb.android:lottie:1.5.3'
 }
