@@ -78,7 +78,34 @@ public class LottieTextureFragment extends AExampleFragment {
 
         @Override
         public void initScene() {
-            Plane screen = new Plane(3, 2, 2, 2, Vector3.Axis.Z);
+//            mObject3D = new Cube(3.0f);
+//            mObject3D.setColor(0);
+//
+//            mObject3D.setPosition(0, 0, -3);
+//            mObject3D.setRenderChildrenAsBatch(true);
+//
+//            mStreamingTexture = new StreamingTexture("viewTexture", this);
+//            Material material = new Material();
+//            material.setColorInfluence(0);
+//            try {
+//                material.addTexture(mStreamingTexture);
+//            } catch (ATexture.TextureException e) {
+//                e.printStackTrace();
+//            }
+//            mObject3D.setMaterial(material);
+//
+//            getCurrentScene().addChild(mObject3D);
+//
+//            RotateOnAxisAnimation anim = new RotateOnAxisAnimation(Vector3.Axis.Y, 0,
+//              360);
+//            anim.setRepeatMode(Animation.RepeatMode.INFINITE);
+//            anim.setDurationMilliseconds(12000);
+//            anim.setTransformable3D(mObject3D);
+//            getCurrentScene().registerAnimation(anim);
+//            anim.play();
+
+
+            Plane mObject3D = new Plane(3, 2, 2, 2, Vector3.Axis.Z);
 
             mStreamingTexture = new StreamingTexture("lottie_viewTexture", this);
             Material material = new Material();
@@ -89,11 +116,11 @@ public class LottieTextureFragment extends AExampleFragment {
                 e.printStackTrace();
             }
 
-            screen.setMaterial(material);
-            screen.setX(.1f);
-            screen.setY(-.2f);
-            screen.setZ(1.5f);
-            getCurrentScene().addChild(screen);
+            mObject3D.setMaterial(material);
+            mObject3D.setX(.1f);
+            mObject3D.setY(-.2f);
+            mObject3D.setZ(-3f);
+            getCurrentScene().addChild(mObject3D);
 
             getCurrentCamera().enableLookAt();
             getCurrentCamera().setLookAt(0, 0, 0);

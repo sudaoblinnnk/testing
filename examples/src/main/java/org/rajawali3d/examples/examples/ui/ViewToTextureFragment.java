@@ -144,9 +144,10 @@ public class ViewToTextureFragment extends AExampleFragment {
             final View view = inflater.inflate(R.layout.view_to_texture, container, false);
             mWebView = (WebView) view.findViewById(R.id.webview);
             mWebView.setWebViewClient(new WebViewClient());
+
             // Load the Rajawali Repo commit activity graph
             //webView.loadUrl("https://github.com/Rajawali/Rajawali/graphs/commit-activity");
-            mWebView.loadUrl("https://plus.google.com/communities/116529974266844528013");
+            mWebView.loadUrl("http://n1.itc.cn/img8/wb/recom/2016/06/30/146725750579841955.GIF");
             mWebView.setInitialScale(100);
             mWebView.setScrollY(0);
             mWebView.animate().rotationYBy(360.0f).setDuration(60000);
