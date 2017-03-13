@@ -8,6 +8,7 @@ import android.graphics.SurfaceTexture;
 import android.opengl.GLES20;
 import android.opengl.GLES30;
 import android.opengl.GLSurfaceView;
+import android.opengl.Matrix;
 import android.os.Build;
 import android.os.Environment;
 import android.util.AttributeSet;
@@ -17,7 +18,9 @@ import android.view.Surface;
 import android.view.View;
 import org.rajawali3d.R;
 import org.rajawali3d.record.EglCore;
+import org.rajawali3d.record.FullFrameRect;
 import org.rajawali3d.record.GlUtil;
+import org.rajawali3d.record.Texture2dProgram;
 import org.rajawali3d.record.TextureMovieEncoder2;
 import org.rajawali3d.record.VideoEncoderCore;
 import org.rajawali3d.record.WindowSurface;
@@ -568,6 +571,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
         private boolean mRecordedPrevious;
         private Rect mVideoRect = new Rect();
 
+        private final float[] mIdentityMatrix;
 
         /**
          * Set once at thread construction time, nulled out when the parent view is garbage
@@ -583,6 +587,11 @@ public class TextureView extends android.view.TextureView implements ISurface {
             mRequestRender = true;
             mRenderMode = RENDERMODE_CONTINUOUSLY;
             mRajawaliTextureViewWeakRef = glSurfaceViewWeakRef;
+
+
+            mIdentityMatrix = new float[16];
+            Matrix.setIdentityM(mIdentityMatrix, 0);
+
         }
 
         private void initEGL() {
@@ -614,7 +623,9 @@ public class TextureView extends android.view.TextureView implements ISurface {
             }
 
             if (mRecordingEnabled) {
-                startEncoder();
+              prepareFramebuffer(mWidth, mHeight);
+
+              startEncoder();
             }
         }
 
@@ -679,6 +690,43 @@ public class TextureView extends android.view.TextureView implements ISurface {
 
         }
 
+        private void draw() {
+            GLES20.glClearColor(0, 0, 1, 0);
+            GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+        }
+
+        private void recordVideo1() {
+            if (!mRecordingEnabled)
+                return;
+
+            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, mFramebuffer);
+            GlUtil.checkGlError("glBindFramebuffer");
+            draw();
+
+            // Blit to display.
+            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+            GlUtil.checkGlError("glBindFramebuffer");
+            mFullScreen.drawFrame(mOffscreenTexture, mIdentityMatrix);
+            mWindowSurface.swapBuffers();
+
+            // Blit to encoder.
+            mVideoEncoder.frameAvailableSoon();
+            mInputWindowSurface.makeCurrent();
+            GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);    // again, only really need to
+            GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);     //  clear pixels outside rect
+            GLES20.glViewport(mVideoRect.left, mVideoRect.top,
+              mVideoRect.width(), mVideoRect.height());
+            mFullScreen.drawFrame(mOffscreenTexture, mIdentityMatrix);
+
+            long timeStampNanos = System.nanoTime();
+            mInputWindowSurface.setPresentationTime(timeStampNanos);
+            mInputWindowSurface.swapBuffers();
+
+            // Restore previous values.
+            GLES20.glViewport(0, 0, mWindowSurface.getWidth(), mWindowSurface.getHeight());
+            mWindowSurface.makeCurrent();
+        }
+
         private void releaseGl() {
             if (mRecordingEnabled) {
                 stopEncoder();
@@ -692,7 +740,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
                 mWindowSurface.release();
                 mWindowSurface = null;
             }
-
+            releaseFramebuffer();
             GlUtil.checkGlError("releaseGl done");
 
             mEglCore.makeNothingCurrent();
@@ -1029,7 +1077,7 @@ public class TextureView extends android.view.TextureView implements ISurface {
                     }
                     //int swapError = mEglHelper.swap();
                     Log.d(TAG, "recordVideo");
-                    recordVideo();
+                    recordVideo1();
                     mWindowSurface.swapBuffers();
 
 //                    switch (swapError) {
@@ -1244,6 +1292,109 @@ public class TextureView extends android.view.TextureView implements ISurface {
                 sGLThreadManager.notifyAll();
             }
         }
+
+      // Used for off-screen rendering.
+      private int mOffscreenTexture;
+      private int mFramebuffer;
+      private int mDepthBuffer;
+      private FullFrameRect mFullScreen;
+
+
+      private void prepareFramebuffer(int width, int height) {
+          mFullScreen = new FullFrameRect(
+            new Texture2dProgram(Texture2dProgram.ProgramType.TEXTURE_2D));
+
+
+          GlUtil.checkGlError("prepareFramebuffer start");
+
+        int[] values = new int[1];
+
+        // Create a texture object and bind it.  This will be the color buffer.
+        GLES20.glGenTextures(1, values, 0);
+        GlUtil.checkGlError("glGenTextures");
+        mOffscreenTexture = values[0];   // expected > 0
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mOffscreenTexture);
+        GlUtil.checkGlError("glBindTexture " + mOffscreenTexture);
+
+        // Create texture storage.
+        GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width, height, 0,
+          GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null);
+
+        // Set parameters.  We're probably using non-power-of-two dimensions, so
+        // some values may not be available for use.
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER,
+          GLES20.GL_NEAREST);
+        GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER,
+          GLES20.GL_LINEAR);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S,
+          GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T,
+          GLES20.GL_CLAMP_TO_EDGE);
+        GlUtil.checkGlError("glTexParameter");
+
+        // Create framebuffer object and bind it.
+        GLES20.glGenFramebuffers(1, values, 0);
+        GlUtil.checkGlError("glGenFramebuffers");
+        mFramebuffer = values[0];    // expected > 0
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, mFramebuffer);
+        GlUtil.checkGlError("glBindFramebuffer " + mFramebuffer);
+
+        // Create a depth buffer and bind it.
+        GLES20.glGenRenderbuffers(1, values, 0);
+        GlUtil.checkGlError("glGenRenderbuffers");
+        mDepthBuffer = values[0];    // expected > 0
+        GLES20.glBindRenderbuffer(GLES20.GL_RENDERBUFFER, mDepthBuffer);
+        GlUtil.checkGlError("glBindRenderbuffer " + mDepthBuffer);
+
+        // Allocate storage for the depth buffer.
+        GLES20.glRenderbufferStorage(GLES20.GL_RENDERBUFFER, GLES20.GL_DEPTH_COMPONENT16,
+          width, height);
+        GlUtil.checkGlError("glRenderbufferStorage");
+
+        // Attach the depth buffer and the texture (color buffer) to the framebuffer object.
+        GLES20.glFramebufferRenderbuffer(GLES20.GL_FRAMEBUFFER, GLES20.GL_DEPTH_ATTACHMENT,
+          GLES20.GL_RENDERBUFFER, mDepthBuffer);
+        GlUtil.checkGlError("glFramebufferRenderbuffer");
+        GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0,
+          GLES20.GL_TEXTURE_2D, mOffscreenTexture, 0);
+        GlUtil.checkGlError("glFramebufferTexture2D");
+
+        // See if GLES is happy with all this.
+        int status = GLES20.glCheckFramebufferStatus(GLES20.GL_FRAMEBUFFER);
+        if (status != GLES20.GL_FRAMEBUFFER_COMPLETE) {
+          throw new RuntimeException("Framebuffer not complete, status=" + status);
+        }
+
+        // Switch back to the default framebuffer.
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+
+        GlUtil.checkGlError("prepareFramebuffer done");
+      }
+
+      private void releaseFramebuffer() {
+          int[] values = new int[1];
+
+          if (mOffscreenTexture > 0) {
+              values[0] = mOffscreenTexture;
+              GLES20.glDeleteTextures(1, values, 0);
+              mOffscreenTexture = -1;
+          }
+          if (mFramebuffer > 0) {
+              values[0] = mFramebuffer;
+              GLES20.glDeleteFramebuffers(1, values, 0);
+              mFramebuffer = -1;
+          }
+          if (mDepthBuffer > 0) {
+              values[0] = mDepthBuffer;
+              GLES20.glDeleteRenderbuffers(1, values, 0);
+              mDepthBuffer = -1;
+          }
+          if (mFullScreen != null) {
+              mFullScreen.release(false); // TODO: should be "true"; must ensure mEglCore current
+              mFullScreen = null;
+          }
+      }
+
     }
 
     public static class GLThreadManager {
